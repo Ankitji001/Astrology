@@ -77,6 +77,7 @@ const CELESTIAL_SYMBOLS = [
 ];
 
 function App() {
+  const [menuOpen, setMenuOpen] = useState(false)
   const [isDomestic, setIsDomestic] = useState(true)
   const [formData, setFormData] = useState({
     name: '',
@@ -155,7 +156,6 @@ function App() {
 
   return (
     <div className="app-container">
-      {/* Sticky Navigation Bar */}
       <nav className="navbar">
         <div className="nav-brand">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -164,12 +164,12 @@ function App() {
           </svg>
           Celestial Guidance
         </div>
-        <ul className="nav-links">
-          <li><a href="#home" className="active">Home</a></li>
-          <li><a href="#about">About Vikram</a></li>
-          <li><a href="#gallery">Cosmic Gallery</a></li>
-          <li><a href="#plans">Consultations</a></li>
-          <li><a href="#booking">Contact Us</a></li>
+        <ul className={`nav-links ${menuOpen ? 'open' : ''}`}>
+          <li><a href="#home" className="active" onClick={() => setMenuOpen(false)}>Home</a></li>
+          <li><a href="#about" onClick={() => setMenuOpen(false)}>About Vikram</a></li>
+          <li><a href="#gallery" onClick={() => setMenuOpen(false)}>Cosmic Gallery</a></li>
+          <li><a href="#plans" onClick={() => setMenuOpen(false)}>Consultations</a></li>
+          <li><a href="#booking" onClick={() => setMenuOpen(false)}>Contact Us</a></li>
         </ul>
         <div className="nav-socials">
           {/* Instagram */}
@@ -192,6 +192,24 @@ function App() {
             </svg>
           </a>
         </div>
+        <button 
+          className={`nav-toggle ${menuOpen ? 'open' : ''}`} 
+          onClick={() => setMenuOpen(!menuOpen)}
+          aria-label="Toggle navigation menu"
+        >
+          {menuOpen ? (
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          ) : (
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="3" y1="12" x2="21" y2="12"></line>
+              <line x1="3" y1="6" x2="21" y2="6"></line>
+              <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+          )}
+        </button>
       </nav>
 
       {/* Hero Section */}
