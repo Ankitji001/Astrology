@@ -207,7 +207,7 @@ a {
   min-height: 80vh;
   display: flex;
   align-items: center;
-  padding: 60px 6%;
+  padding: 30px 6% 50px;
   overflow: hidden;
 }
 
@@ -243,12 +243,13 @@ a {
   grid-template-columns: 1.1fr 0.9fr;
   gap: 60px;
   align-items: center;
+  transform: translateY(-25px);
 }
 
 .hero-content {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 18px;
 }
 
 .hero-content h1 {
