@@ -81,12 +81,15 @@ function App() {
   const [isDomestic, setIsDomestic] = useState(true)
   const [formData, setFormData] = useState({
     name: '',
+    email: '',
+    phone: '',
     dob: '',
     tob: '',
     pob: '',
     consultType: 'Video Deep-Dive'
   })
   const [errors, setErrors] = useState({})
+  const [activeModal, setActiveModal] = useState(null)
   
   // Ref for scrolling to the booking section
   const bookingRef = useRef(null)
@@ -122,6 +125,14 @@ function App() {
   const validateForm = () => {
     const newErrors = {}
     if (!formData.name.trim()) newErrors.name = 'Full Name is required'
+    if (!formData.email.trim()) {
+      newErrors.email = 'Email address is required'
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = 'Invalid email address'
+    }
+    if (!formData.phone.trim()) {
+      newErrors.phone = 'Phone number is required'
+    }
     if (!formData.dob) newErrors.dob = 'Date of birth is required'
     if (!formData.tob) newErrors.tob = 'Time of birth is required'
     if (!formData.pob.trim()) newErrors.pob = 'Place of birth is required'
@@ -130,28 +141,179 @@ function App() {
     return Object.keys(newErrors).length === 0
   }
 
-  // Trigger WhatsApp redirection
+  // Open Razorpay Payment Modal
+  const triggerRazorpayCheckout = async () => {
+    if (!window.Razorpay) {
+      alert("Payment gateway (Razorpay) failed to load. Please verify your internet connection, disable any ad-blockers, and refresh the page.");
+      return;
+    }
+
+    let orderId = null;
+
+    // Try fetching the secure order ID from the Vercel serverless function
+    try {
+      const apiResponse = await fetch('/api/create-order', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          consultType: formData.consultType,
+          isDomestic: isDomestic
+        })
+      });
+
+      if (apiResponse.ok) {
+        const orderData = await apiResponse.json();
+        orderId = orderData.orderId;
+      } else {
+        console.warn("Secure order creation failed. Falling back to client-side integration.");
+      }
+    } catch (err) {
+      console.warn("Serverless API not reachable. Using client-side integration fallback.", err);
+    }
+
+    const options = {
+      key: import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_placeholder',
+      amount: currentPrice.amount * 100, // Amount in paise/cents
+      currency: isDomestic ? 'INR' : 'USD',
+      name: 'Celestial Guidance',
+      description: `${formData.consultType} with Vikram Kumar Sharma`,
+      image: '/favicon.ico',
+      order_id: orderId, // Passes the tamper-proof Vercel order ID if created
+      handler: function (response) {
+        const paymentId = response.razorpay_payment_id;
+        redirectToWhatsApp(paymentId);
+      },
+      prefill: {
+        name: formData.name,
+        email: formData.email,
+        contact: formData.phone,
+      },
+      theme: {
+        color: '#FF6B00',
+      },
+      modal: {
+        ondismiss: function () {
+          console.log("Payment window closed by user");
+        }
+      }
+    };
+
+    try {
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+    } catch (err) {
+      console.error("Razorpay initiation failed", err);
+      alert("There was an issue opening the payment gateway. Please check if your API Key in .env is correct.");
+    }
+  }
+
+  // Redirect to WhatsApp with payment details
+  const redirectToWhatsApp = (paymentId) => {
+    const message = `✨ *Celestial Guidance Booking & Payment Confirmation* ✨\n\n` +
+      `💳 *Payment ID:* ${paymentId}\n` +
+      `👤 *Name:* ${formData.name}\n` +
+      `📧 *Email:* ${formData.email}\n` +
+      `📞 *Phone:* ${formData.phone}\n` +
+      `📅 *Date of Birth:* ${formData.dob}\n` +
+      `⏰ *Time of Birth:* ${formData.tob}\n` +
+      `📍 *Place of Birth:* ${formData.pob}\n` +
+      `🔮 *Selected Plan:* ${formData.consultType}\n` +
+      `💵 *Paid Amount:* ${currentPrice.symbol} ${currentPrice.amount}\n\n` +
+      `Payment completed successfully. Please confirm slot availability. Thank you!`;
+
+    const encodedMessage = encodeURIComponent(message)
+    let whatsappNumber = import.meta.env.VITE_WHATSAPP_NUMBER || ''
+    // Clean phone number: remove any non-digit character (like spaces, +, -, etc.)
+    whatsappNumber = whatsappNumber.replace(/\D/g, '')
+
+    if (!whatsappNumber) {
+      alert("WhatsApp number is not configured in the environment settings.");
+      return;
+    }
+
+    const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodedMessage}`
+    window.open(whatsappUrl, '_blank')
+  }
+
+  // Form submit click handler
   const handleWhatsAppRedirect = (e) => {
     e.preventDefault()
     if (!validateForm()) {
       return
     }
+    triggerRazorpayCheckout()
+  }
 
-    const message = `✨ *Celestial Guidance Booking Details* ✨\n\n` +
-      `👤 *Name:* ${formData.name}\n` +
-      `📅 *Date of Birth:* ${formData.dob}\n` +
-      `⏰ *Time of Birth:* ${formData.tob}\n` +
-      `📍 *Place of Birth:* ${formData.pob}\n` +
-      `🔮 *Selected Plan:* ${formData.consultType}\n` +
-      `💵 *Final Total:* ${currentPrice.symbol} ${currentPrice.amount}\n\n` +
-      `Please confirm slot availability for my session. Thank you!`;
+  const renderModalContent = () => {
+    switch (activeModal) {
+      case 'privacy':
+        return (
+          <>
+            <h4>1. Data We Collect</h4>
+            <p>We collect personal information that you provide to us, including your Full Name, Email Address, Contact Number, and Birth Details (Date, Time, and Place of Birth) solely for the purpose of generating personalized Vedic astrological charts and calculations.</p>
+            <h4>2. Data Security & Usage</h4>
+            <p>Your details are processed securely and used exclusively by Vikram Kumar Sharma's office to prepare your horoscope and coordinate scheduling. We do not sell, share, or lease your private data to any third parties.</p>
+            <h4>3. Payment Information</h4>
+            <p>All online payments are securely processed through Razorpay. We do not store or collect your payment card details or bank credentials on our servers.</p>
+          </>
+        )
+      case 'terms':
+        return (
+          <>
+            <h4>1. Astrological Services</h4>
+            <p>Astrological consultations are based on Vedic principles and represent subjective guidance. These consultations do not constitute legal, medical, or financial advice. Decisions made based on our readings are the sole responsibility of the client.</p>
+            <h4>2. Booking & Schedule</h4>
+            <p>Sessions must be booked and paid for in advance. While we make every effort to accommodate your preferred timing, final session slots are subject to coordinate confirmation via WhatsApp.</p>
+            <h4>3. User Obligations</h4>
+            <p>Clients must provide accurate and complete birth information (Date, Time, and Place of Birth) to ensure calculation accuracy. Inaccurate data will result in incorrect readings.</p>
+          </>
+        )
+      case 'refund':
+        return (
+          <>
+            <h4>1. Cancellation & Rescheduling</h4>
+            <p>We respect your time and request that you respect ours. You can reschedule or cancel a session under the following guidelines:</p>
+            <ul>
+              <li><strong>Cancellations requested 24 hours or more</strong> before the scheduled slot are eligible for a <strong>100% refund</strong>.</li>
+              <li><strong>Cancellations requested within 24 hours</strong> of the slot are eligible for a <strong>50% refund</strong>, or a free rescheduling to a future slot.</li>
+            </ul>
+            <h4>2. Refund Processing Time</h4>
+            <p>Once a cancellation is approved, refunds will be initiated automatically to your original payment method. The refund amount will be credited back to your bank account or card within <strong>5 to 7 business days</strong>, subject to your bank's policies.</p>
+            <h4>3. Post-Consultation</h4>
+            <p>No refunds will be issued once a voice call or video deep-dive consultation has been successfully conducted.</p>
+          </>
+        )
+      case 'disclaimer':
+        return (
+          <>
+            <h4>1. General Disclaimer</h4>
+            <p>The information, advice, and predictions provided by astrologer Vikram Kumar Sharma are intended for educational and spiritual guidance. Astrology is not a science and is subject to individual interpretation. Clients should exercise their own judgment.</p>
+            <h4>2. Business Contact Info</h4>
+            <p>For any service queries, cancellation requests, or payment issues, please contact us directly:</p>
+            <ul>
+              <li><strong>Practitioner:</strong> Vikram Kumar Sharma</li>
+              <li><strong>Practitioner:</strong> Age - 42 </li>
+              <li><strong>Email Support:</strong>vinvicky07@gmail.com</li>
+              <li><strong>Contact Number:</strong> +91 9718871309</li>
+              <li><strong>Office Address:</strong>  New Delhi, 110001, India</li>
+            </ul>
+          </>
+        )
+      default:
+        return null
+    }
+  }
 
-    const encodedMessage = encodeURIComponent(message)
-    // Placeholder Indian WhatsApp business contact number for Astrologer Vikram Kumar Sharma's office
-    const whatsappUrl = `https://wa.me/919876543210?text=${encodedMessage}`
-    
-    // Redirect the user
-    window.open(whatsappUrl, '_blank')
+  const getModalTitle = () => {
+    switch (activeModal) {
+      case 'privacy': return 'Privacy Policy'
+      case 'terms': return 'Terms of Service'
+      case 'refund': return 'Refund & Cancellation Policy'
+      case 'disclaimer': return 'Disclaimer & Contact Info'
+      default: return ''
+    }
   }
 
   return (
@@ -448,6 +610,35 @@ function App() {
 
               <div className="form-row">
                 <div className="form-group">
+                  <label className="form-label" htmlFor="email">Email Address</label>
+                  <input 
+                    type="email" 
+                    name="email" 
+                    id="email"
+                    value={formData.email} 
+                    onChange={handleInputChange} 
+                    placeholder="yourname@example.com" 
+                    className="form-input" 
+                  />
+                  {errors.email && <span className="error-msg">{errors.email}</span>}
+                </div>
+                <div className="form-group">
+                  <label className="form-label" htmlFor="phone">Phone / WhatsApp</label>
+                  <input 
+                    type="tel" 
+                    name="phone" 
+                    id="phone"
+                    value={formData.phone} 
+                    onChange={handleInputChange} 
+                    placeholder="e.g. +91 98765 43210" 
+                    className="form-input" 
+                  />
+                  {errors.phone && <span className="error-msg">{errors.phone}</span>}
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
                   <label className="form-label" htmlFor="dob">Date of Birth</label>
                   <input 
                     type="date" 
@@ -565,15 +756,40 @@ function App() {
             Celestial Guidance
           </div>
           <ul className="footer-links">
-            <li><a href="#home">Privacy Policy</a></li>
-            <li><a href="#home">Terms of Service</a></li>
-            <li><a href="#home">Disclaimer</a></li>
+            <li><button type="button" onClick={() => setActiveModal('privacy')} className="footer-link-btn">Privacy Policy</button></li>
+            <li><button type="button" onClick={() => setActiveModal('terms')} className="footer-link-btn">Terms of Service</button></li>
+            <li><button type="button" onClick={() => setActiveModal('refund')} className="footer-link-btn">Refund Policy</button></li>
+            <li><button type="button" onClick={() => setActiveModal('disclaimer')} className="footer-link-btn">Disclaimer & Contact</button></li>
           </ul>
         </div>
         <div className="footer-bottom">
           <p>© 2026 Celestial Guidance | Delhi, India. All rights reserved.</p>
         </div>
       </footer>
+
+      {activeModal && (
+        <div className="modal-overlay" onClick={() => setActiveModal(null)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>{getModalTitle()}</h3>
+              <button 
+                type="button" 
+                className="modal-close" 
+                onClick={() => setActiveModal(null)}
+                aria-label="Close modal"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            </div>
+            <div className="modal-body">
+              {renderModalContent()}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
