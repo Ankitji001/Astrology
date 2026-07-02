@@ -143,7 +143,7 @@ function App() {
 
   // Redirect to WhatsApp with booking details
   const redirectToWhatsApp = () => {
-    const message = `✨ *Celestial Guidance Booking Request* ✨\n\n` +
+    const message = `✨ *Astro with Vikram Booking Request* ✨\n\n` +
       `👤 *Name:* ${formData.name}\n` +
       `📧 *Email:* ${formData.email}\n` +
       `📞 *Phone:* ${formData.phone}\n` +
@@ -255,7 +255,7 @@ function App() {
             <circle cx="12" cy="12" r="10" />
             <path d="M12 2v20M2 12h20M12 12l5.5-5.5M12 12l-5.5 5.5M12 12l5.5 5.5M12 12L6.5 6.5" />
           </svg>
-          Celestial Guidance
+          Astro with Vikram
         </div>
         <ul className={`nav-links ${menuOpen ? 'open' : ''}`}>
           <li><a href="#home" className="active" onClick={() => setMenuOpen(false)}>Home</a></li>
@@ -665,7 +665,7 @@ function App() {
               <circle cx="12" cy="12" r="10" />
               <path d="M12 2v20M2 12h20" />
             </svg>
-            Celestial Guidance
+            Astro with Vikram
           </div>
           <ul className="footer-links">
             <li><button type="button" onClick={() => setActiveModal('privacy')} className="footer-link-btn">Privacy Policy</button></li>
@@ -675,7 +675,7 @@ function App() {
           </ul>
         </div>
         <div className="footer-bottom">
-          <p>© 2026 Celestial Guidance | Delhi, India. All rights reserved.</p>
+          <p>© 2026 Astro with Vikram | Delhi, India. All rights reserved.</p>
         </div>
       </footer>
 
