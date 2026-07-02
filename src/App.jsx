@@ -97,9 +97,9 @@ function App() {
   // Price calculations based on Toggle and Dropdown state
   const getPlanPrice = (planName) => {
     if (planName === 'Voice Consultation') {
-      return isDomestic ? { amount: 1500, symbol: '₹' } : { amount: 30, symbol: '$' }
+      return isDomestic ? { amount: 1100, symbol: '₹' } : { amount: 30, symbol: '$' }
     } else {
-      return isDomestic ? { amount: 2500, symbol: '₹' } : { amount: 50, symbol: '$' }
+      return isDomestic ? { amount: 2100, symbol: '₹' } : { amount: 50, symbol: '$' }
     }
   }
 
@@ -141,78 +141,9 @@ function App() {
     return Object.keys(newErrors).length === 0
   }
 
-  // Open Razorpay Payment Modal
-  const triggerRazorpayCheckout = async () => {
-    if (!window.Razorpay) {
-      alert("Payment gateway (Razorpay) failed to load. Please verify your internet connection, disable any ad-blockers, and refresh the page.");
-      return;
-    }
-
-    let orderId = null;
-
-    // Try fetching the secure order ID from the Vercel serverless function
-    try {
-      const apiResponse = await fetch('/api/create-order', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          consultType: formData.consultType,
-          isDomestic: isDomestic
-        })
-      });
-
-      if (apiResponse.ok) {
-        const orderData = await apiResponse.json();
-        orderId = orderData.orderId;
-      } else {
-        console.warn("Secure order creation failed. Falling back to client-side integration.");
-      }
-    } catch (err) {
-      console.warn("Serverless API not reachable. Using client-side integration fallback.", err);
-    }
-
-    const options = {
-      key: import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_placeholder',
-      amount: currentPrice.amount * 100, // Amount in paise/cents
-      currency: isDomestic ? 'INR' : 'USD',
-      name: 'Celestial Guidance',
-      description: `${formData.consultType} with Vikram Kumar Sharma`,
-      image: '/favicon.ico',
-      order_id: orderId, // Passes the tamper-proof Vercel order ID if created
-      handler: function (response) {
-        const paymentId = response.razorpay_payment_id;
-        redirectToWhatsApp(paymentId);
-      },
-      prefill: {
-        name: formData.name,
-        email: formData.email,
-        contact: formData.phone,
-      },
-      theme: {
-        color: '#FF6B00',
-      },
-      modal: {
-        ondismiss: function () {
-          console.log("Payment window closed by user");
-        }
-      }
-    };
-
-    try {
-      const rzp = new window.Razorpay(options);
-      rzp.open();
-    } catch (err) {
-      console.error("Razorpay initiation failed", err);
-      alert("There was an issue opening the payment gateway. Please check if your API Key in .env is correct.");
-    }
-  }
-
-  // Redirect to WhatsApp with payment details
-  const redirectToWhatsApp = (paymentId) => {
-    const message = `✨ *Celestial Guidance Booking & Payment Confirmation* ✨\n\n` +
-      `💳 *Payment ID:* ${paymentId}\n` +
+  // Redirect to WhatsApp with booking details
+  const redirectToWhatsApp = () => {
+    const message = `✨ *Celestial Guidance Booking Request* ✨\n\n` +
       `👤 *Name:* ${formData.name}\n` +
       `📧 *Email:* ${formData.email}\n` +
       `📞 *Phone:* ${formData.phone}\n` +
@@ -220,8 +151,8 @@ function App() {
       `⏰ *Time of Birth:* ${formData.tob}\n` +
       `📍 *Place of Birth:* ${formData.pob}\n` +
       `🔮 *Selected Plan:* ${formData.consultType}\n` +
-      `💵 *Paid Amount:* ${currentPrice.symbol} ${currentPrice.amount}\n\n` +
-      `Payment completed successfully. Please confirm slot availability. Thank you!`;
+      `💵 *Price:* ${currentPrice.symbol} ${currentPrice.amount}\n\n` +
+      `I would like to book a ${formData.consultType}. Please confirm slot availability and kindly send the payment options so we can proceed. Thank you!`;
 
     const encodedMessage = encodeURIComponent(message)
     let whatsappNumber = import.meta.env.VITE_WHATSAPP_NUMBER || ''
@@ -243,7 +174,7 @@ function App() {
     if (!validateForm()) {
       return
     }
-    triggerRazorpayCheckout()
+    redirectToWhatsApp()
   }
 
   const renderModalContent = () => {
@@ -256,7 +187,7 @@ function App() {
             <h4>2. Data Security & Usage</h4>
             <p>Your details are processed securely and used exclusively by Vikram Kumar Sharma's office to prepare your horoscope and coordinate scheduling. We do not sell, share, or lease your private data to any third parties.</p>
             <h4>3. Payment Information</h4>
-            <p>All online payments are securely processed through Razorpay. We do not store or collect your payment card details or bank credentials on our servers.</p>
+            <p>All consulting sessions are coordinated directly. Payment options and methods are shared during scheduling via our official WhatsApp channel, and no sensitive billing information is processed or stored on this website.</p>
           </>
         )
       case 'terms':
@@ -445,28 +376,9 @@ function App() {
               ))}
             </div>
           </div>
-          {/* Card 2 */}
-          <div className="cosmic-card">
-            <div className="cosmic-symbol-grid">
-              {CELESTIAL_SYMBOLS.map((symbol, index) => (
-                <div key={`c2-${index}`} className="cosmic-symbol-box">
-                  {symbol}
-                </div>
-              ))}
-            </div>
-          </div>
-          {/* Card 3 */}
-          <div className="cosmic-card">
-            <div className="cosmic-symbol-grid">
-              {CELESTIAL_SYMBOLS.map((symbol, index) => (
-                <div key={`c3-${index}`} className="cosmic-symbol-box">
-                  {symbol}
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
       </section>
+
 
       {/* Pricing / Consultation Plans Section */}
       <section id="plans" className="pricing-section">
@@ -503,7 +415,7 @@ function App() {
             <h3>Voice Consultation</h3>
             <div className="price-display">
               <span className="price-currency">{isDomestic ? '₹' : '$'}</span>
-              <span className="price-val">{isDomestic ? '1500' : '30'}</span>
+              <span className="price-val">{isDomestic ? '1100' : '30'}</span>
             </div>
             <ul className="features-list">
               <li>
@@ -546,7 +458,7 @@ function App() {
             <h3>Video Deep-Dive</h3>
             <div className="price-display">
               <span className="price-currency">{isDomestic ? '₹' : '$'}</span>
-              <span className="price-val">{isDomestic ? '2500' : '50'}</span>
+              <span className="price-val">{isDomestic ? '2100' : '50'}</span>
             </div>
             <ul className="features-list">
               <li>
@@ -727,7 +639,7 @@ function App() {
               <svg viewBox="0 0 24 24">
                 <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.517 2.266 2.27 3.507 5.283 3.507 8.485-.006 6.66-5.345 11.997-11.958 11.997-2.005-.001-3.973-.504-5.717-1.465L0 24zm6.59-4.846c1.6.95 3.167 1.448 4.787 1.449 5.517 0 10.006-4.487 10.01-10.002.002-2.673-1.036-5.185-2.924-7.075C16.634 1.637 14.12 1.05 11.45 1.05 5.93 1.05 1.443 5.539 1.44 11.056c-.001 1.716.452 3.393 1.31 4.882l-1.002 3.66 3.754-.984z" />
               </svg>
-              Pay & Connect on WhatsApp
+              Book & Connect on WhatsApp
             </button>
 
             <div className="whatsapp-info-block">
@@ -738,7 +650,7 @@ function App() {
                 </svg>
               </div>
               <div className="whatsapp-info-text">
-                Upon successful payment, you will be instantly redirected to WhatsApp to confirm your appointment with Vikram's office.
+                You will be instantly redirected to WhatsApp to submit your request and coordinate scheduling with Vikram's office.
               </div>
             </div>
           </div>
